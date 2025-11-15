@@ -11,6 +11,7 @@ using minimals_api.Infra.Db;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddScoped<IAdmService, AdmService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
+
 builder.Services.AddDbContext<DbContexto>(options =>
 {
     options.UseMySql(builder.Configuration.GetConnectionString("mysql"),
@@ -46,6 +47,11 @@ app.MapPost("/vechiles", ([FromBody] VehicleDTO vehicleDto, IVehicleService vehi
     };
     vehicleService.Add(vehicle);
     return Results.Created($"/vehicles/{vehicle.Id}", vehicle);
+});
+app.MapGet("/vechicles", ([FromQuery] int? page, IVehicleService vehicleService) =>
+{
+    var vehicles = vehicleService.All(page);
+    return Results.Ok(vehicles);
 });
 #endregion
 

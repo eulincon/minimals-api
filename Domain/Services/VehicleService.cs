@@ -20,7 +20,7 @@ public class VehicleService : IVehicleService
         _contexto.SaveChanges();
     }
 
-    public List<Vehicle>? All(int page = 1, string? nome = null, string? marca = null)
+    public List<Vehicle>? All(int? page = 1, string? nome = null, string? marca = null)
     {
         var query = _contexto.vehicles.AsQueryable();
         if (!string.IsNullOrEmpty(nome))
@@ -28,7 +28,7 @@ public class VehicleService : IVehicleService
             query.Where(v => v.Nome.ToLower().Contains(nome));
         }
         int itensByPage = 10;
-        query = query.Skip((page - 1) * itensByPage).Take(itensByPage);
+        query = query.Skip((page.GetValueOrDefault(1) - 1) * itensByPage).Take(itensByPage);
         return query.ToList();
     }
 
