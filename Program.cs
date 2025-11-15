@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using minimals_api.Domain.DTOs;
+using minimals_api.Infra.Db;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<DbContext>(options =>
+builder.Services.AddDbContext<DbContexto>(options =>
 {
     options.UseMySql(builder.Configuration.GetConnectionString("mysql"),
     ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysql")));
