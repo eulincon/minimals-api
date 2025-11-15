@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("minimals-api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+982e7c3001a30d6b6d16d9c51ae3bd643766b64a")]
 [assembly: System.Reflection.AssemblyProductAttribute("minimals-api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("minimals-api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

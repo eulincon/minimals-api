@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\minimals-api.props" />
-</Project>
