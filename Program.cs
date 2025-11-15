@@ -12,6 +12,8 @@ builder.Services.AddDbContext<DbContexto>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("mysql"),
     ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysql")));
 });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 app.MapGet("/", () => "Olá pessoal");
@@ -24,5 +26,7 @@ app.MapPost("/login", ([FromBody] LoginDTO loginDTO, IAdmService admService) =>
         return Results.Unauthorized();
 });
 
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.Run();
