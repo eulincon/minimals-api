@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using minimals_api.Domain.DTOs;
 using minimals_api.Domain.Entities;
+using minimals_api.Domain.Enums;
 using minimals_api.Domain.Interfaces;
 using minimals_api.Domain.ModelViews;
 using minimals_api.Domain.Services;
@@ -44,7 +45,7 @@ app.MapGet("/", () => TypedResults.Redirect("/swagger")).WithTags("Home");
 #endregion
 
 #region Adm
-app.MapPost("/adm/login", ([FromBody] LoginDTO loginDTO, IAdmService admService) =>
+app.MapPost("/adms/login", ([FromBody] LoginDTO loginDTO, IAdmService admService) =>
 {
     var validationResult = ValidateDTO(loginDTO);
     if (validationResult != null)
@@ -54,6 +55,51 @@ app.MapPost("/adm/login", ([FromBody] LoginDTO loginDTO, IAdmService admService)
         return Results.Ok("Login com sucesso");
     else
         return Results.Unauthorized();
+}).WithTags("Adms");
+app.MapGet("/adms/{id}", ([FromRoute] int id, IAdmService admService) =>
+{
+    var adm = admService.FindById(id);
+    if (adm == null)
+        return Results.NotFound();
+    return Results.Ok(new AdmModelView{
+        Id = adm.Id,
+        Email = adm.Email,
+        Perfil = adm.Perfil
+    });
+}).WithTags("Adms");
+app.MapGet("/adms", ([FromQuery] int? page, IAdmService admService) =>
+{
+    var admsResult = new List<AdmModelView>();
+    var adms = admService.All(page);
+    adms.ForEach(a => admsResult.Add(new AdmModelView
+    {
+        Id = a.Id,
+        Email = a.Email,
+        Perfil = a.Perfil
+    }));
+    return Results.Ok(admsResult);
+}).WithTags("Adms");
+app.MapPost("/adms", ([FromBody] AdmDTO admDTO, IAdmService admService) =>
+{
+    var validationResult = ValidateDTO(admDTO);
+    if (validationResult != null)
+        return validationResult;
+
+    var adm = new Adm
+    {
+        Email = admDTO.Email,
+        Senha = admDTO.Senha,
+        Perfil = admDTO.Perfil.ToString()
+    };
+
+    admService.Add(adm);
+
+    var result = new AdmModelView{
+        Id = adm.Id,
+        Email = adm.Email,
+        Perfil = adm.Perfil
+    };
+    return Results.Created($"/adms/{result.Id}", result);
 }).WithTags("Adms");
 #endregion
 
@@ -78,6 +124,14 @@ app.MapGet("/vechicles", ([FromQuery] int? page, IVehicleService vehicleService)
 {
     var vehicles = vehicleService.All(page);
     return Results.Ok(vehicles);
+}).WithTags("Vehicles");
+
+app.MapGet("/vechicles/{id}", ([FromRoute] int id, IVehicleService vehicleService) =>
+{
+    var vehicle = vehicleService.FindById(id);
+    if (vehicle == null)
+        return Results.NotFound();
+    return Results.Ok(vehicle);
 }).WithTags("Vehicles");
 
 app.MapPut("/vechicles", ([FromQuery] int id, VehicleDTO vehicleDto, IVehicleService vehicleService) =>
