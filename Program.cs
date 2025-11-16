@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using minimals_api.Domain.DTOs;
@@ -22,6 +23,22 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 #endregion
 
+#region Validation Helper
+static IResult? ValidateDTO<T>(T dto) where T : class
+{
+    var context = new ValidationContext(dto);
+    var results = new List<ValidationResult>();
+    bool isValid = Validator.TryValidateObject(dto, context, results, validateAllProperties: true);
+
+    if (!isValid)
+    {
+        var errorMessages = results.Select(r => new { field = r.MemberNames.FirstOrDefault() ?? "General", message = r.ErrorMessage });
+        return Results.BadRequest(new { errors = errorMessages });
+    }
+    return null;
+}
+#endregion
+
 #region Home
 app.MapGet("/", () => TypedResults.Redirect("/swagger")).WithTags("Home");
 #endregion
@@ -29,6 +46,10 @@ app.MapGet("/", () => TypedResults.Redirect("/swagger")).WithTags("Home");
 #region Adm
 app.MapPost("/adm/login", ([FromBody] LoginDTO loginDTO, IAdmService admService) =>
 {
+    var validationResult = ValidateDTO(loginDTO);
+    if (validationResult != null)
+        return validationResult;
+
     if (admService.Login(loginDTO) != null)
         return Results.Ok("Login com sucesso");
     else
@@ -39,6 +60,10 @@ app.MapPost("/adm/login", ([FromBody] LoginDTO loginDTO, IAdmService admService)
 #region Vehicle
 app.MapPost("/vechiles", ([FromBody] VehicleDTO vehicleDto, IVehicleService vehicleService) =>
 {
+    var validationResult = ValidateDTO(vehicleDto);
+    if (validationResult != null)
+        return validationResult;
+
     var vehicle = new Vehicle
     {
         Nome = vehicleDto.Nome,
@@ -48,13 +73,19 @@ app.MapPost("/vechiles", ([FromBody] VehicleDTO vehicleDto, IVehicleService vehi
     vehicleService.Add(vehicle);
     return Results.Created($"/vehicles/{vehicle.Id}", vehicle);
 }).WithTags("Vehicles");
+
 app.MapGet("/vechicles", ([FromQuery] int? page, IVehicleService vehicleService) =>
 {
     var vehicles = vehicleService.All(page);
     return Results.Ok(vehicles);
 }).WithTags("Vehicles");
+
 app.MapPut("/vechicles", ([FromQuery] int id, VehicleDTO vehicleDto, IVehicleService vehicleService) =>
 {
+    var validationResult = ValidateDTO(vehicleDto);
+    if (validationResult != null)
+        return validationResult;
+
     var vehicle = vehicleService.FindById(id);
     if (vehicle == null) return Results.NotFound();
 
@@ -65,6 +96,7 @@ app.MapPut("/vechicles", ([FromQuery] int id, VehicleDTO vehicleDto, IVehicleSer
     vehicleService.Update(vehicle);
     return Results.Ok(vehicle);
 }).WithTags("Vehicles");
+
 app.MapDelete("/vechicles", ([FromQuery] int id, IVehicleService vehicleService) =>
 {
     var vehicle = vehicleService.FindById(id);
