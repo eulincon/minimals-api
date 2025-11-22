@@ -1,6 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using minimals_api.Domain.DTOs;
 using minimals_api.Domain.Entities;
 using minimals_api.Domain.Enums;
@@ -11,13 +16,32 @@ using minimals_api.Infra.Db;
 
 #region Builder
 var builder = WebApplication.CreateBuilder(args);
+
+var key = builder.Configuration.GetSection("Jwt").ToString();
+if (string.IsNullOrEmpty(key)) key = "123456";
+
+builder.Services.AddAuthentication(option =>
+{
+    option.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(option =>
+{
+    option.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateLifetime = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+    };
+});
+
+builder.Services.AddAuthorization();
+
 builder.Services.AddScoped<IAdmService, AdmService>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 
 builder.Services.AddDbContext<DbContexto>(options =>
 {
-    options.UseMySql(builder.Configuration.GetConnectionString("mysql"),
-    ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("mysql")));
+    options.UseMySql(builder.Configuration.GetConnectionString("Mysql"),
+    ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("Mysql")));
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -45,14 +69,45 @@ app.MapGet("/", () => TypedResults.Redirect("/swagger")).WithTags("Home");
 #endregion
 
 #region Adm
+
+string GerarTokenJwt(Adm adm)
+{
+    if (string.IsNullOrEmpty(key)) return string.Empty;
+    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+    var claims = new List<Claim>()
+    {
+        new Claim("Email", adm.Email),
+        new Claim("Perfil", adm.Perfil)
+    };
+
+    var token = new JwtSecurityToken(
+        claims: claims,
+        expires: DateTime.Now.AddDays(1),
+        signingCredentials: credentials
+    );
+
+    return new JwtSecurityTokenHandler().WriteToken(token);
+
+}
+
 app.MapPost("/adms/login", ([FromBody] LoginDTO loginDTO, IAdmService admService) =>
 {
     var validationResult = ValidateDTO(loginDTO);
     if (validationResult != null)
         return validationResult;
 
-    if (admService.Login(loginDTO) != null)
-        return Results.Ok("Login com sucesso");
+    var adm = admService.Login(loginDTO);
+    if (adm != null)
+    {
+        string token = GerarTokenJwt(adm);
+        return Results.Ok(new AdmLogado
+        {
+            Email = adm.Email,
+            Perfil = adm.Perfil,
+            Token = token
+        });
+    }
     else
         return Results.Unauthorized();
 }).WithTags("Adms");
@@ -61,12 +116,13 @@ app.MapGet("/adms/{id}", ([FromRoute] int id, IAdmService admService) =>
     var adm = admService.FindById(id);
     if (adm == null)
         return Results.NotFound();
-    return Results.Ok(new AdmModelView{
+    return Results.Ok(new AdmModelView
+    {
         Id = adm.Id,
         Email = adm.Email,
         Perfil = adm.Perfil
     });
-}).WithTags("Adms");
+}).RequireAuthorization().WithTags("Adms");
 app.MapGet("/adms", ([FromQuery] int? page, IAdmService admService) =>
 {
     var admsResult = new List<AdmModelView>();
@@ -78,7 +134,7 @@ app.MapGet("/adms", ([FromQuery] int? page, IAdmService admService) =>
         Perfil = a.Perfil
     }));
     return Results.Ok(admsResult);
-}).WithTags("Adms");
+}).RequireAuthorization().WithTags("Adms");
 app.MapPost("/adms", ([FromBody] AdmDTO admDTO, IAdmService admService) =>
 {
     var validationResult = ValidateDTO(admDTO);
@@ -94,13 +150,14 @@ app.MapPost("/adms", ([FromBody] AdmDTO admDTO, IAdmService admService) =>
 
     admService.Add(adm);
 
-    var result = new AdmModelView{
+    var result = new AdmModelView
+    {
         Id = adm.Id,
         Email = adm.Email,
         Perfil = adm.Perfil
     };
     return Results.Created($"/adms/{result.Id}", result);
-}).WithTags("Adms");
+}).RequireAuthorization().WithTags("Adms");
 #endregion
 
 #region Vehicle
@@ -118,13 +175,13 @@ app.MapPost("/vechiles", ([FromBody] VehicleDTO vehicleDto, IVehicleService vehi
     };
     vehicleService.Add(vehicle);
     return Results.Created($"/vehicles/{vehicle.Id}", vehicle);
-}).WithTags("Vehicles");
+}).RequireAuthorization().WithTags("Vehicles");
 
 app.MapGet("/vechicles", ([FromQuery] int? page, IVehicleService vehicleService) =>
 {
     var vehicles = vehicleService.All(page);
     return Results.Ok(vehicles);
-}).WithTags("Vehicles");
+}).RequireAuthorization().WithTags("Vehicles");
 
 app.MapGet("/vechicles/{id}", ([FromRoute] int id, IVehicleService vehicleService) =>
 {
@@ -132,7 +189,7 @@ app.MapGet("/vechicles/{id}", ([FromRoute] int id, IVehicleService vehicleServic
     if (vehicle == null)
         return Results.NotFound();
     return Results.Ok(vehicle);
-}).WithTags("Vehicles");
+}).RequireAuthorization().WithTags("Vehicles");
 
 app.MapPut("/vechicles", ([FromQuery] int id, VehicleDTO vehicleDto, IVehicleService vehicleService) =>
 {
@@ -149,7 +206,7 @@ app.MapPut("/vechicles", ([FromQuery] int id, VehicleDTO vehicleDto, IVehicleSer
 
     vehicleService.Update(vehicle);
     return Results.Ok(vehicle);
-}).WithTags("Vehicles");
+}).RequireAuthorization().WithTags("Vehicles");
 
 app.MapDelete("/vechicles", ([FromQuery] int id, IVehicleService vehicleService) =>
 {
@@ -158,12 +215,14 @@ app.MapDelete("/vechicles", ([FromQuery] int id, IVehicleService vehicleService)
 
     vehicleService.Delete(vehicle);
     return Results.NoContent();
-}).WithTags("Vehicles");
+}).RequireAuthorization().WithTags("Vehicles");
 #endregion
 
 #region App
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.Run();
 #endregion

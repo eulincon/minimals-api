@@ -32,7 +32,7 @@ public class DbContexto : DbContext
         // Only configure if options haven't been provided (e.g. when activated by DI without options)
         if (!optionsBuilder.IsConfigured && _configuracaoAppSettings != null)
         {
-            var stringConexao = _configuracaoAppSettings.GetConnectionString("mysql")?.ToString();
+            var stringConexao = _configuracaoAppSettings.GetConnectionString("Mysql")?.ToString();
             if (!string.IsNullOrEmpty(stringConexao))
             {
                 // Avoid AutoDetect here; prefer explicit configuration done in Program.cs. Keep this as a fallback.
