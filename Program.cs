@@ -6,9 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using Microsoft.OpenApi.Models;
 using minimals_api.Domain.DTOs;
 using minimals_api.Domain.Entities;
-using minimals_api.Domain.Enums;
 using minimals_api.Domain.Interfaces;
 using minimals_api.Domain.ModelViews;
 using minimals_api.Domain.Services;
@@ -29,7 +30,9 @@ builder.Services.AddAuthentication(option =>
     option.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateLifetime = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+        ValidateIssuer = false,
+        ValidateAudience = false
     };
 });
 
@@ -44,7 +47,33 @@ builder.Services.AddDbContext<DbContexto>(options =>
     ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("Mysql")));
 });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Insert JWT token here:"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+            },
+            new string[]{}
+        }
+    });
+});
+
 var app = builder.Build();
 #endregion
 
@@ -65,7 +94,7 @@ static IResult? ValidateDTO<T>(T dto) where T : class
 #endregion
 
 #region Home
-app.MapGet("/", () => TypedResults.Redirect("/swagger")).WithTags("Home");
+app.MapGet("/", () => TypedResults.Redirect("/swagger")).AllowAnonymous().WithTags("Home");
 #endregion
 
 #region Adm
@@ -110,7 +139,7 @@ app.MapPost("/adms/login", ([FromBody] LoginDTO loginDTO, IAdmService admService
     }
     else
         return Results.Unauthorized();
-}).WithTags("Adms");
+}).AllowAnonymous().WithTags("Adms");
 app.MapGet("/adms/{id}", ([FromRoute] int id, IAdmService admService) =>
 {
     var adm = admService.FindById(id);
