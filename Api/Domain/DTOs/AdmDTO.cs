@@ -10,7 +10,7 @@ public class AdmDTO
     public string Email { get; set; } = default!;
 
     [Required(ErrorMessage = "Senha is required")]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "Senha must be between 6 and 100 characters")]
+    [StringLength(100, MinimumLength = 3, ErrorMessage = "Senha must be between 3 and 100 characters")]
     public string Senha { get; set; } = default!;
     [Required]
     public Perfil Perfil { get; set; } = default!;
